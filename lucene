@@ -167,11 +167,7 @@
 }
 #use
   List<Poem> poems = poemService.findAll();
-	LuceneUtil.createIndex(poems, Poem.class)
+  LuceneUtil.createIndex(poems, Poem.class);
  
 #check
   List list = LuceneUtil.searchIndex(domainName, keyword);
-
-
-    
-    ;
