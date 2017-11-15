@@ -1,0 +1,161 @@
+#创建注解
+      @Target(ElementType.FIELD)
+      @Retention(RetentionPolicy.RUNTIME)
+      public @interface Translate {
+	      String value() default "未汉化";
+      }
+#使用注解
+      public class User implements Serializable {
+          @Translate("编号")
+          private String id;
+          @Translate("姓名")
+          private String name;
+          @Translate("法号")
+          private String username;
+          @Translate("头像")
+          private String image;
+          @Translate("手机")
+          private String phone;
+          @Translate("密码")
+          private String password;
+          @Translate("状态")
+          private String status;
+          @Translate("性别")
+          private String sex;
+          @Translate("地址")
+          private String address;
+          @Translate("简介")
+          private String descrip;
+          @Translate("登录时间")
+          @JSONField(format="yyyy-MM-dd")
+          @JsonFormat(pattern="yyyy-MM-dd")
+          private Date time;
+          @Translate("盐值")
+          private String salt;
+          
+          getter/setter
+          
+          构造方法...
+          
+          tostring
+     }   
+  
+#POI 工具类 + 使用注解
+     public class POIUtil {
+	
+        //导出Excel
+        public static Workbook ExportExcel(List data, Class clasz) throws Exception{
+
+          HSSFWorkbook workBook = new HSSFWorkbook();			//创建Excel表格对象
+
+          HSSFSheet sheet = workBook.createSheet();			//创建工作页
+
+          Field[] fields = clasz.getDeclaredFields();			//获取类的各个属性
+
+          sheet.setDefaultColumnWidth(30);					//设置Excel默认列宽
+
+          CellStyle cs = workBook.createCellStyle();			//创建样式对象
+          HSSFFont font = workBook.createFont();	
+          font.setColor(Font.COLOR_RED);
+          font.setFontName("宋体");
+          cs.setFont(font);
+
+          //表头操作
+          HSSFRow rowHead = sheet.createRow(0);				//创建头行
+          for(int i = 0; i < fields.length; i++){
+            HSSFCell cell = rowHead.createCell(i);			//创建单元格
+            Translate translate = fields[i].getAnnotation(Translate.class);		//自定义注解
+            String cellName = "";							
+            if(translate != null){
+              cellName = translate.value(); 
+
+}else{
+              cellName = fields[i].getName();
+            }
+            cell.setCellValue(cellName);					//设置单元格的值
+          }
+          //数据操作
+          for(int i = 1; i <= data.size(); i++){
+            HSSFRow row = sheet.createRow(i);				//创建数据行
+            Object obj = data.get(i-1);						//获取到集合里的对象
+            for(int j = 0; j < fields.length; j++){
+              HSSFCell cell = row.createCell(j);			//创建单元格
+              fields[j].setAccessible(true);				//打破属性的封装
+              if(fields[j].get(obj) == null){
+                cell.setCellValue("");
+              }else if(fields[j].get(obj) instanceof Date){
+                Date date = (Date)fields[j].get(obj);		
+                cell.setCellValue(new SimpleDateFormat("yyyy-MM-dd").format(date).toString());
+              }else{
+                cell.setCellValue(fields[j].get(obj).toString());
+              }
+            }
+          }
+
+          return workBook;
+        }
+
+        //导入Excel
+        public static List ImportExcel(InputStream in, Class clasz) throws Exception{
+          HSSFWorkbook workBook = new HSSFWorkbook(in);			//获取到要导入的文件输入路径
+
+          HSSFSheet sheet = workBook.getSheetAt(0);				//获取头行
+
+          Field[] fields = clasz.getDeclaredFields();				//获取类的各个属性
+
+          ArrayList<Object> list = new ArrayList<Object>();		//创建一个新集合
+          for(int i = 1; i < sheet.getLastRowNum()+1; i++){
+            HSSFRow row = sheet.getRow(i);						//检索每一行数据
+            Object instance = clasz.newInstance();				//创建实例化对象
+            for(int j = 0; j < fields.length; j++){
+              HSSFCell cell = row.getCell(j);					//获取到对应单元格的值
+              fields[j].setAccessible(true);					//打破封装
+              if(fields[j] == null){
+                fields[j].set(instance, null);
+              }else if(fields[j].getType() == Integer.class){
+                fields[j].set(instance, Integer.parseInt(cell.toString()));
+              }else if(fields[j].getType() == Date.class){
+                fields[j].set(instance, new SimpleDateFormat("yyyy-MM-dd").parse(cell.toString()));
+              }else{
+                fields[j].set(instance, cell.toString());
+              }
+            }
+            list.add(instance);									//往集合中添加实例化对象
+          }
+          workBook.close();
+          return list;
+        }
+      } 
+#使用工具类
+       //导入
+	@ResponseBody
+	@RequestMapping("/import")
+	public void testImport(MultipartFile source) throws Exception{
+		List list = POIUtil.ImportExcel(source.getInputStream(), User.class);
+		us.addList(list);
+	}
+
+	//导出
+	@ResponseBody
+	@RequestMapping("/export")
+	public void testExport() throws Exception{
+		Workbook workBook = POIUtil.ExportExcel(us.findByPage(1, us.findTotal()), User.class);
+		File file = new File("d:/user.xls");
+		workBook.write(new FileOutputStream(file));
+		workBook.close();
+	}
+	
+	@ResponseBody
+	@RequestMapping("/exportSel")
+	public void testExportSel(String list) throws Exception{
+    //Js代码
+    ------------------------------------------------------------------
+    var jsonObj = JSON.stringify($("#tb").datagrid("getSelections"));
+    ------------------------------------------------------------------
+		List<User> userList = JSON.parseArray(list, User.class);
+		Workbook workBook = POIUtil.ExportExcel(userList, User.class);
+		File file = new File("d:/choose.xls");
+		workBook.write(new FileOutputStream(file));
+		workBook.close();
+	}
+
