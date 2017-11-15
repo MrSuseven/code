@@ -1,0 +1,36 @@
+#提前准备一个ftl文件,编辑好所需的Html元素
+
+#代码
+  try{
+			Configuration configuration = new Configuration();
+			configuration.setDirectoryForTemplateLoading(new File("D:\\servlet\\workspace\\cmfz_weixf\\resources\\com\\sq8\\ftl"));
+			configuration.setDefaultEncoding("UTF-8");
+			Template template = configuration.getTemplate("article.ftl");
+			Map<String,Object> root = new HashMap<String,Object>();
+			root.put("Article", t);
+			root.put("author", author);
+			
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(new File("D:\\servlet\\workspace\\cmfz_weixf\\WebRoot\\article\\"+t.getId()+".html")), "UTF-8"));
+			template.process(root, out);
+			
+			out.flush();
+			out.close();
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+
+#展示单个数据 ${name}
+#展示对象数据 ${user.id}  
+			       ${user.bir?date}  date|time|datetime  默认 -
+				     ${user.bir?string(yyyy-mm-dd)}  ?string("指定日期格式")
+#处理null值   ${user.name!'默认值'}  
+#list、set、map 
+            list:<#list 集合名 as 变量>
+            map: <#list 集合名?keys as aa> 
+                ${集合名[aa].id}
+
+<#if name == "小黑">  
+<#else>
+</#if>
+
+#判空       <#if  name??>                
