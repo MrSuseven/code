@@ -36,7 +36,7 @@
 	      	/usr/bin/fdfs_storaged /etc/fdfs/storage.conf start
 	  3. 测试
 		      /usr/bin/fdfs_monitor /etc/fdfs/client.conf
-#使
+#使用
 	  1. 上传文件
 		      /usr/bin/fdfs_upload_file /etc/fdfs/client.conf /root/test.jpg 
 	       	返回;
