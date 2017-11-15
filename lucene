@@ -111,7 +111,8 @@
 
             String bestFragment = highlighter.getBestFragment(new StandardAnalyzer(), domainName, document.get(domainName));
             if(domainName.equals("Poetname"))
-                list.add(new Poem(Integer.parseInt(document.get("Poemid")), document.get("Poemtitle"), document.get("Poemcontent"), new Poet(null,bestFragment)));
+
+list.add(new Poem(Integer.parseInt(document.get("Poemid")), document.get("Poemtitle"), document.get("Poemcontent"), new Poet(null,bestFragment)));
             else if(domainName.equals("Poemtitle"))
                 list.add(new Poem(Integer.parseInt(document.get("Poemid")), bestFragment, document.get("Poemcontent"), new Poet(null, document.get("Poetname"))));
             else
