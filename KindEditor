@@ -1,0 +1,101 @@
+#JS代码
+      $(function(){
+          KindEditor/*.ready(function(obj){
+            editor = obj*/.create(
+              "#content",
+              {
+                themeType:"simple",			//修改主题，可设置：default、simple,指定simple时需引入simple.css
+                height:"500px",
+                //工具插件
+                items:[
+                  "source","preview","fullscreen","clearhtml","|",
+                  "undo","redo","|",
+                  "copy","paste","plainpaste","wordpaste","|",
+                  "justifycenter","justifyright","justifyfull","insertorderedlist","insertunorderedlist","indent","outdent","|",
+                  "formatblock", "fontname","fontsize", "forecolor","hilitecolor", "bold","italic", "underline","strikethrough", "lineheight","removeformat", "|",
+                   "image","table", "hr", "emoticons","baidumap", "pagebreak","anchor", "link", "unlink"
+                ],
+                langType:"zh_CN",
+                syncType:"form",			//可设置"","form",值为form时提交表单同步，
+                filterMode:false,			//true时根据htmlTags过滤html代码，false时允许输入任何代码
+                pagebreakHtml:"<hr class='pageBreak' \/>",		//指定分页符HTML
+                allowFileManager:true,							//true时显示浏览远程服务器按钮
+                filePostName:"image",							//相当于input file name
+                fileManagerJson:"${pageContext.request.contextPath}/util/browser",		//指定浏览远程图片的服务器端程序
+                uploadJson:"${pageContext.request.contextPath}/util/uploadImg",
+                //上传图片、Flash、视音频、文件时，支持添加别的参数一并传到服务器。 {item_id : 1000,category_id : 1}
+                extraFileUploadParams:{
+                  token : getCookie("token")
+                }, 
+                /*  afterCreate : function() {
+                    elocalStorage();
+                   }, */
+                //编辑器内容发生变化后执行的回调函数。
+                afterChange : function() {
+                  this.sync();
+                }
+              }
+            )
+          /*});*/
+        });
+#Controller
+
+        /**
+         * 浏览文件
+         */
+        @ResponseBody
+        @RequestMapping("/browser")
+        public void testBrowser(String path, HttpServletRequest req, HttpServletResponse res){
+          try {
+            //获得所有的file文件
+            String json = FileUtil.getFiles(req.getSession().getServletContext().getRealPath("/upload" + path), req.getContextPath(), req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort());
+            res.setCharacterEncoding("UTF-8");
+            res.setContentType("application/json;charset=UTF-8");
+            PrintWriter writer = res.getWriter();
+            writer.write(json);
+          } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+          }
+        }
+
+        /**
+         * 上传文件
+         */
+        @ResponseBody
+        @RequestMapping("/uploadImg")
+        public void testUploadImg(MultipartFile image, HttpServletRequest req, HttpServletResponse res ){
+          Map<String, Object> map = new HashMap<String, Object>();
+          Map<String, String> message = new HashMap<String, String>();
+          try{
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            String dirDate = simpleDateFormat.format(new Date());
+            String path = req.getSession().getServletContext().getRealPath("/upload") + "/" + dirDate;
+            File file = new File(path);
+            if(!file.exists()){
+              file.mkdirs();
+            }
+            String originalFilename = UUID.randomUUID().toString() + "." + FilenameUtils.getExtension(image.getOriginalFilename());
+            image.transferTo(new File(path, originalFilename));
+            message.put("type", "success");
+
+            //生成图片的网络路径
+            String url = req.getScheme() + "://" + req.getServerName() + ":" +req.getServerPort() + req.getContextPath();
+            map.put("url", url + "/upload" + dirDate + File.separator + originalFilename);
+          }catch(IOException e){
+            message.put("type", "error");
+            e.printStackTrace();
+          }
+
+          map.put("message", message);
+
+          try{
+            String json = JSONObject.toJSONString(map);
+            res.setCharacterEncoding("UTF-8");
+            res.setContentType("text/html; charset=UTF-8");
+            PrintWriter writer = res.getWriter();
+            writer.write(json);
+          }catch(Exception e){
+            e.printStackTrace();
+          }
+        }
