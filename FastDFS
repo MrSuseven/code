@@ -1,0 +1,325 @@
+#下载安装
+     1. yum install gcc-c++ perl-devel pcre-devel openssl-devel zlib-devel wget
+	   2. wget https://github.com/happyfish100/libfastcommon/archive/V1.0.36.tar.gz
+		      tar -zxvf  V1.0.36.tar.gz
+	       	cd fastlibcommon 
+		      ./make.sh
+	        ./make.sh install 
+     3. wget https://github.com/happyfish100/fastdfs/archive/V5.11.tar.gz
+	       	tar -zxvf V5.11.tar.gz
+		      cd fastdfs
+	      	./make.sh
+		     ./make.sh install 
+#创建FastDFS运行所需目录
+     mkdir -p /data/FastDFS/{tracker,storage/store}
+#创建启动所需的配置文件
+     cp /etc/fdfs/tracker.conf.sample /etc/fdfs/tracker.conf
+     cp /etc/fdfs/storage.conf.sample /etc/fdfs/storage.conf
+     cp /etc/fdfs/client.conf.sample /etc/fdfs/client.conf
+#配置
+     1. vi storage.conf
+			      vi /etc/fdfs/storage.conf
+			          base_path=/data/fastdfs/storage/
+			          store_path0=/data/fastdfs/storage/store/
+			          tracker_server=192.168.128.141:22122
+	   2. vi tracker.conf
+			      vi /etc/fdfs/tracker.conf
+			          base_path=/data/fastdfs/tracker
+	   3. vi client.conf
+			      vi /etc/fdfs/client.conf
+			          base_path=/tmp
+		          	tracker_server=192.168.128.141.22122
+#启动
+    1. 启动tracker server
+       		/usr/bin/fdfs_trackerd /etc/fdfs/tracker.conf start
+	  2. 启动storage server
+	      	/usr/bin/fdfs_storaged /etc/fdfs/storage.conf start
+	  3. 测试
+		      /usr/bin/fdfs_monitor /etc/fdfs/client.conf
+#使
+	  1. 上传文件
+		      /usr/bin/fdfs_upload_file /etc/fdfs/client.conf /root/test.jpg 
+	       	返回;
+			        file_id group1/M00/00/00/wKiAgloMUZSAMePGAAByNijgyl8695.jpg
+	  2. 下载文件
+	      	/usr/bin/fdfs_download_file /etc/fdfs/client.conf group1/M00/00/00/wKiAgloMUZSAMePGAAByNijgyl8695.jpg
+	  3. 删除文件
+		     /usr/bin/fdfs_delete_file /etc/fdfs/client.conf group1/M00/00/00/wKiAgloMUZSAMePGAAByNijgyl8695.jpg
+         
+#maven客户端
+
+   pom.xml
+
+       <dependency>
+
+           <groupId>org.csource</groupId>
+
+           <artifactId>fastdfs-client-java</artifactId>
+
+           <version>1.27-SNAPSHOT</version>
+
+       </dependency>
+
+   #配置文件fastfds.conf
+
+       connect_timeout = 2
+
+       network_timeout = 30
+
+       charset = UTF-8
+
+       http.tracker_http_port = 80
+
+       http.anti_steal_token = no
+
+       http.secret_key = FastDFS1234567890
+
+
+
+       tracker_server = 192.168.227.128:22122
+
+   #测试代码
+
+       public class TestFastDFS {
+
+
+
+            private final String FILENAME = "fastfds.conf";
+
+
+
+            private StorageClient storageClient;
+
+
+
+            @Before
+
+            public void init() throws IOException, MyException {
+
+                   ClientGlobal.init(FILENAME);
+
+
+
+                   TrackerClient trackerClient = new TrackerClient();
+
+
+
+                   StorageServer storageServer = null;
+
+
+
+                   storageClient = new StorageClient(trackerClient.getConnection(), storageServer);
+
+            }
+
+
+
+            @Test
+
+            public void testUpload() throws IOException, MyException {
+
+                   NameValuePair[] valuePairs = new NameValuePair[]{new NameValuePair("width", "150px"),
+
+                                                                   new NameValuePair("height","150px")};
+
+
+
+                   String[] file = storageClient.upload_appender_file("D:\\user.xls", "xls", valuePairs);
+
+
+
+                   for (String s : file) {
+
+                            System.out.println(s);
+
+                   }
+
+            }
+
+
+
+            @Test
+
+            public void testDownload() throws IOException, MyException {
+
+                   byte[] bytes = storageClient.download_file("group1", "M00/00/00/wKjjgFoMI06EO-gkAAAAAH8GKpo163.xls");
+
+
+
+                   FileOutputStream fileOutputStream = new FileOutputStream("E:\\1.xls");
+
+                   fileOutputStream.write(bytes);
+
+            }
+
+
+
+            @Test
+
+            public void testDelete() throws IOException, MyException {
+
+                   storageClient.delete_file("group1", "M00/00/00/wKjjgFoMJJeEdJAwAAAAAH8GKpo149.xls");
+
+            }
+
+
+
+            @Test
+
+            public void testMeta() throws IOException, MyException {
+
+                   NameValuePair[] metadata = storageClient
+
+                                              .get_metadata("group1", "M00/00/00/wKjjgFoMJJeEdJAwAAAAAH8GKpo149.xls");
+
+
+
+                   for (NameValuePair metadatum : metadata) {
+
+                          System.out.println(metadatum.getName() + ":" + metadatum.getValue() );
+
+                   }
+
+           }
+
+     }
+
+
+
+#springBoot客户端
+
+     pom.xml
+
+         <dependency>
+
+		<groupId>com.github.tobato</groupId>
+
+		<artifactId>fastdfs-client</artifactId>
+
+		<version>1.25.4-RELEASE</version>
+
+	</dependency>
+
+     application.properties
+
+        fdfs.connect-timeout=601
+
+        fdfs.so-timeout=1501
+
+        fdfs.thumbImage.width=150
+
+        fdfs.thumbImage.height=150
+
+        fdfs.tracker-list=192.168.227.128:22122
+
+
+
+        fdfs.pool.max-total=153
+
+        fdfs.pool.max-wait-millis=102
+
+     #测试类
+
+        @RunWith(SpringRunner.class)
+
+        @SpringBootTest
+
+        public class SpringbootFastdfsApplicationTests {
+
+
+
+	       @Autowired
+
+	       private FastFileStorageClient fastFileStorageClient;
+
+
+
+	       @Test
+
+	       public void contextLoads() throws FileNotFoundException {
+
+		      File file = new File("D:\\user.xls");
+
+
+
+		      Set<MateData> set = new HashSet<MateData>();
+
+		      set.add(new MateData("width", "150px"));
+
+		      set.add(new MateData("heigth", "150px"));
+
+
+
+		      StorePath storePath = fastFileStorageClient
+
+                                            .uploadFile(new FileInputStream("D:\\user.xls"), file.length(), "xls", set);
+
+
+
+		      System.out.println(storePath);
+
+	      }
+
+
+
+	      @Test
+
+	      public void download() throws IOException {
+
+		     byte[] bytes = fastFileStorageClient
+
+                        .downloadFile ("group1", "M00/00/00/wKjjgFoMJ8aAKL6cAAAYAH8GKpo031.xls", new  DownloadByteArray());
+
+
+
+		     FileOutputStream fileOutputStream = new FileOutputStream("E:\\1.xls");
+
+
+
+		     fileOutputStream.write(bytes);
+
+	     }
+
+
+
+	     @Test
+
+             public void delete(){
+
+	            fastFileStorageClient.deleteFile("group1", "M00/00/00/wKjjgFoMJ8aAKL6cAAAYAH8GKpo031.xls");
+
+             }
+
+
+
+             @Test
+
+             public void matedata(){
+
+                    Set<MateData> mateData = fastFileStorageClient
+
+                                             .getMetadata("group1", "M00/00/00/wKjjgFoMKu-ALwY3AAAYAH8GKpo678.xls");
+
+
+
+                    for (MateData mateDatum : mateData) {
+
+                             System.out.println(mateDatum.getName() + ":" + mateDatum.getValue());
+
+                    } 
+
+             }
+
+      }
+
+
+
+      #src/main/java中 XxxApplication文件 +注解
+
+          @Configuration
+
+          @Import(FdfsClientConfig.class)
+
+          // 解决jmx重复注册bean的问题 
+
+          @EnableMBeanExport(registration = RegistrationPolicy.IGNORE_EXISTING)
