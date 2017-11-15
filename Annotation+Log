@@ -1,0 +1,118 @@
+#创建注解
+      @Target(ElementType.METHOD)
+      @Retention(RetentionPolicy.RUNTIME)
+      public @interface Event {
+        String value();
+      }
+      
+      @Target(ElementType.METHOD)
+      @Retention(RetentionPolicy.RUNTIME)
+      public @interface Type {
+        String value();
+      }
+#使用注解
+      <!-- 识别@Aspect注解 -->
+	    <aop:aspectj-autoproxy proxy-target-class="true"></aop:aspectj-autoproxy>
+      
+      +在实现类上
+          public class AdminServiceImpl implements AdminService {
+
+            @Autowired
+            private AdminDao ad;
+
+            @Event("分页查询")
+            @Type("管理员")
+            @Transactional(
+                  propagation=Propagation.SUPPORTS,
+                  readOnly=true
+                )
+            public List<Admin> findAll() {
+              // TODO Auto-generated method stub
+              List<Admin> list = ad.queryAll();
+              return list;
+            }
+
+            @Event("登录验证")
+            @Type("管理员")
+            @Transactional(
+                  propagation=Propagation.SUPPORTS,
+                  readOnly=true
+                )
+            public Admin findByParam(String name, String password) {
+              // TODO Auto-generated method stub
+              Admin admin = ad.queryByParam(name, password);
+              return admin;
+            }
+
+            public void addAdmin(Admin admin) {
+              // TODO Auto-generated method stub
+              admin.setId(UUID.randomUUID().toString());
+              admin.setStatus("Y");
+              admin.setTime(new Date());
+              ad.insert(admin);
+            }
+
+            @Event("更改密码")
+            @Type("管理员")
+            public void modify(Admin admin) {
+              // TODO Auto-generated method stub
+              ad.update(admin);
+            }
+          }
+      <!-- 识别@Aspect注解 -->
+	    <aop:aspectj-autoproxy proxy-target-class="false"></aop:aspectj-autoproxy> 
+      +在接口上
+
+#Log + Annotation
+      @Component
+      @Aspect
+      public class LogAdvice {
+
+        @Resource
+        private LogService ls;
+        @Autowired
+        private AdminDao ad;
+
+        @Around("execution(* com.sq8.service.*.*(..))")
+        public Object log(ProceedingJoinPoint pjp){
+          Admin admin = (Admin)ContextUtil.getSession().getAttribute("admin");
+      //		StringBuilder sb = new StringBuilder();
+      //		sb.append(admin.getName()+"在");
+      //		
+      //		String format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+      //		sb.append(format);
+
+          Signature sign = pjp.getSignature();
+          MethodSignature ms = (MethodSignature)sign;
+          Method method = ms.getMethod();
+
+          Event event = method.getAnnotation(Event.class);
+      //		sb.append("做" + event);
+          Type type = method.getAnnotation(Type.class);
+      //		sb.append(":" + type);
+          if(method.toString().contains("AdminServiceImpl.findByParam")){
+            try {
+              return pjp.proceed();
+            } catch (Throwable e) {
+              // TODO Auto-generated catch block
+              e.printStackTrace();
+            }
+          }
+          Admin adminName = ad.queryByParam(admin.getName(), null);
+
+          if(type == null || event == null || adminName == null){
+
+          }else{
+            ls.addObj(new Log(null, adminName.getName(), null, event.value(), type.value()));	
+          }
+          try {
+            return pjp.proceed();
+          } catch (Throwable e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new RuntimeException("切面异常");
+          }
+        }
+      }
+
+
