@@ -1,0 +1,148 @@
+#JSP页面
+    <!-- 为ECharts准备一个具备大小（宽高）的Dom -->
+    <div id="main" style="width: 600px;height:400px;"></div>
+  
+    <script type="text/javascript">
+      var myChart = echarts.init(document.getElementById('main'));
+
+      // 显示标题，图例和空的坐标轴
+      myChart.setOption({
+        title : {
+          text : '文章点击量排行榜前10名'
+        },
+        tooltip : {},
+        legend : {
+          data : [ '点击量' ]
+        },
+        xAxis : {
+          data : []
+        },
+        yAxis : {},
+        series : [ {
+          name : '点击量',
+          type : 'bar',
+          data : []
+        } ]
+
+});
+
+      // 异步加载数据
+      $.get('${pageContext.request.contextPath}/article/rank').done(function(data) {
+        // 填入数据
+        myChart.setOption({
+          xAxis : {
+            data : data.articleName
+          },
+          series : [ {
+            // 根据名字对应到相应的系列
+            name : '点击量',
+            data : data.articleRate
+          } ]
+        });
+      });
+    </script>
+    
+#Service
+    //点击率 记录
+    @Event("点击率记录")
+    @Type("文章表")
+    public Object clickRate(String id) {
+      // TODO Auto-generated method stub
+      Jedis jedis = JedisUtil.getJedis();
+
+      Double zscore = jedis.zscore("articleId", id);
+      if(zscore != null){
+        Integer i = zscore.intValue();
+        AtomicInteger sum = new AtomicInteger(i);		//可以保证多线程情况下数据的安全
+
+        sum.addAndGet(1);								// +1操作
+        jedis.zadd("articleId", sum.intValue(), id);
+      }else if(zscore == null){
+        jedis.zadd("articleId", 1, id);
+      }
+      JedisUtil.closeJedis(jedis);
+      return ad.queryByParam(id);
+    }
+
+    //排行榜查询
+    @Event("查询排行榜")
+    @Type("文章表")
+    @Transactional(propagation=Propagation.SUPPORTS,readOnly=true)
+    public Object rankingList() {
+      // TODO Auto-generated method stub
+      Jedis jedis = JedisUtil.getJedis();
+      Set<String> zrevrange = jedis.zrevrange("articleId", 0, 9);
+
+      List<String> names = new ArrayList<String>();		//文章名集合
+      List<String> count = new ArrayList<String>();		//点击量集合
+      for (String id : zrevrange) {
+        if("".equals(id)){
+          break;
+        }
+        Article article = ad.queryByParam(id);
+        names.add(article.getName());
+
+        Double zrank = jedis.zscore("articleId", id);
+        count.add(String.valueOf(zrank.intValue()));
+      }
+
+      Map<String, Object> map = new HashMap<String, Object>();
+
+      map.put("articleName", names);
+      map.put("articleRate", count);
+
+      JedisUtil.closeJedis(jedis);
+      return map;
+    }
+#Jedis工具类
+  public class JedisUtil {
+    private static JedisPool jedisPool;
+    static {
+      JedisPoolConfig config = new JedisPoolConfig();
+      // 设置最大连接数
+      config.setMaxTotal(20);
+
+      // 设置连接时长
+      config.setMaxWaitMillis(5000);
+
+      // 设置最大存活数
+      config.setMaxIdle(10);
+
+      jedisPool = new JedisPool(config, "192.168.227.129", 9000);
+
+    }
+
+    public static Jedis getJedis() {
+
+      Jedis jedis = jedisPool.getResource();
+
+      return jedis;
+    }
+
+    public static void closeJedis(Jedis jedis) {
+
+      jedis.close();
+
+    }
+
+    @Test
+    public void test() {
+      Jedis jedis = getJedis();
+
+      jedis.select(1);
+
+      jedis.zadd("down", 1, "01");
+      jedis.zadd("down", 5, "02");
+      jedis.zadd("down", 7, "03");
+      jedis.zadd("down", 2, "05");
+
+      Set<String> zrange = jedis.zrange("down", 0, -1);
+      for (String key : zrange) {
+        System.out.println(key);
+        Double zscore = jedis.zscore("down", key);
+        System.out.println(zscore);
+      }
+      //closeJedis(jedis);
+
+    }
+  }
