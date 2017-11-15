@@ -1,0 +1,177 @@
+#util
+  public class LuceneUtil {
+
+    //判断一个字符串是否为整数
+    public static boolean isNumeric(String str){
+        Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
+
+        return pattern.matcher(str).matches();
+    }
+    
+    // 返回文档相关信息
+    private static Map buildDocument(Map map, Object o) throws IllegalAccessException {
+
+        Field[] fields = o.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            field.setAccessible(true);
+            if(field.get(o) == null){
+
+            }else if(field.getType() == Integer.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else if(field.getType() == String.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else if(field.getType() == Byte.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else if(field.getType() == Short.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else if(field.getType() == Long.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else if(field.getType() == Float.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else if(field.getType() == Double.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else if(field.getType() == Character.class){
+                map.put(o.getClass().getSimpleName()+field.getName(), field.get(o));
+            }else{
+                buildDocument(map, field.getType().cast(field.get(o)));
+            }
+        }
+        return map;
+    }
+
+    public static void createIndex(List list, Class clasz) throws IOException, IllegalAccessException {
+
+        Field[] fields = clasz.getDeclaredFields();
+
+        //1. 创建索引库
+        FSDirectory directory = FSDirectory.open(Paths.get("E:\\lucene\\poem"));
+
+        //2. 创建索引写出对象                                                     创建标准分词库
+        IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(new StandardAnalyzer()));
+
+        for (int i = 0; i < list.size(); i++) {
+            //3. 创建文档
+            Document document = new Document();
+            Object o = list.get(i);
+            Map map = buildDocument(new HashMap<String, Object>(), o);
+            Set set = map.keySet();
+            for (Object obj : set) {
+                if(map.get(obj) == ""){
+
+                }else if(isNumeric(map.get(obj).toString())){
+                    document.add(new IntField(obj.toString(), Integer.parseInt(map.get(obj).toString()), org.apache.lucene.document.Field.Store.YES));
+                }else if(map.get(obj).toString().length() < 20){
+                    document.add(new TextField(obj.toString(), map.get(obj).toString(), org.apache.lucene.document.Field.Store.YES));
+                }else{
+                    document.add(new TextField(obj.toString(), map.get(obj).toString(), org.apache.lucene.document.Field.Store.NO));
+                }
+            }
+            writer.addDocument(document);
+        }
+        writer.commit();
+        writer.close();
+    }
+
+    public static List searchIndex(String domainName, String keyword) throws IOException, ParseException, InvalidTokenOffsetsException {
+
+        List list = new ArrayList<Integer>();
+
+        //1. 指定索引文件目录
+        FSDirectory directory = FSDirectory.open(Paths.get("E:\\lucene\\poem"));
+
+        //2. 检索索引文件 reader索引读入器
+        IndexReader reader = DirectoryReader.open(directory);
+
+        //3. 从索引读入器检索结果
+        IndexSearcher searcher = new IndexSearcher(reader);
+
+        //4. 检索器检索索引
+        QueryParser parser = new QueryParser(domainName, new StandardAnalyzer());
+
+  Query query = parser.parse(domainName+ ":" +keyword);
+
+        //高亮显示查询内容
+            //1. 创建高亮格式
+        SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span style='color:red'>", "</span>");
+            //2. 创建Scorer
+        QueryScorer queryScorer = new QueryScorer(query);
+            //3. 创建高亮器
+        Highlighter highlighter = new Highlighter(formatter, queryScorer);
+
+        //5. 检索结果
+        TopDocs docs = searcher.search(query, 10);
+        
+        //6. 文档信息
+        ScoreDoc[] scoreDocs = docs.scoreDocs;
+        for (ScoreDoc scoreDoc : scoreDocs) {
+
+// 文档Id
+            int docId = scoreDoc.doc;
+            Document document = reader.document(docId);
+
+            String bestFragment = highlighter.getBestFragment(new StandardAnalyzer(), domainName, document.get(domainName));
+            if(domainName.equals("Poetname"))
+                list.add(new Poem(Integer.parseInt(document.get("Poemid")), document.get("Poemtitle"), document.get("Poemcontent"), new Poet(null,bestFragment)));
+            else if(domainName.equals("Poemtitle"))
+                list.add(new Poem(Integer.parseInt(document.get("Poemid")), bestFragment, document.get("Poemcontent"), new Poet(null, document.get("Poetname"))));
+            else
+                list.add(document.get("Poemid"));
+        }
+        //7. 关闭
+        reader.close();
+
+        //8. 返回查询结果
+        return list;
+    }
+
+    public static void UpdateIndex(Document document, String domainName, String keyword) throws IOException {
+        //1. 指定索引的存储目录
+        FSDirectory directory = FSDirectory.open(Paths.get("E:\\lucene\\poem"));
+
+        //2. 索引写入器
+        IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(new StandardAnalyzer()));
+
+        //3.查找对应条件 再修改
+        writer.updateDocument(new Term(domainName, keyword), document);
+
+        writer.commit();
+        writer.close();
+    }
+
+    public static void DeleteIndex(String domainName, String keyword) throws IOException {
+        //1. 指定索引的存储目录
+        FSDirectory directory = FSDirectory.open(Paths.get("E:\\lucene\\poem"));
+
+        //2. 索引写入器
+        IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(new StandardAnalyzer()));
+
+        //3. 查询对应条件 并删除
+        writer.deleteDocuments(new Term(domainName, keyword));
+
+        writer.commit();
+        writer.close();
+    }
+
+    public static void removeAll() throws IOException {
+        //1. 指定索引的存储目录
+        FSDirectory directory = FSDirectory.open(Paths.get("E:\\lucene\\poem"));
+
+        //2. 索引写入器
+        IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(new StandardAnalyzer()));
+
+        writer.deleteAll();
+
+        writer.commit();
+        writer.close();
+    }
+}
+#use
+  List<Poem> poems = poemService.findAll();
+	LuceneUtil.createIndex(poems, Poem.class)
+ 
+#check
+  List list = LuceneUtil.searchIndex(domainName, keyword);
+
+
+    
+    ;
