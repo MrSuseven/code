@@ -1,0 +1,52 @@
+#安装JDK
+    1. tar -zxvf jdk-7u65-linux-i586.tar.gz
+    2. vi /etc/profile
+          文件最后加：
+              export JAVA_HOME=/usr/local/jdk1.7.0_65
+				      export PATH=$PATH:$JAVA_HOME/bin
+				      export CLASSPATH=. 
+    3. source /etc/profile
+    4. 测试(输入java运行即可)
+#安装Tomcat
+    1. tar -zxvf apache-tomcat-7.0.69.tar.gz
+    2. 开启与关闭 ,进入解压目录下/bin目录里
+          1). ./startup.sh
+          2). ./shutdown.sh
+    3. 日志文件 解压目录下/logs/catalina.out
+#开启oracle远程连接
+    开始 --> oracle --> 转至oracle数据库主页(用户名system口令123456) --> 管理 --> 管理Http访问 --> 从本地服务器和远程机可用 --> 应用
+#安装Mysql
+    1. 安装
+          1.1 在线安装 yum install -y mysql-server
+          1.2 rpm安装
+                      rpm -ivh perl-*.rpm
+                      rpm -Uvh mysql-libs-5.1.73-7.el6.i686.rpm
+                      rpm -ivh mysql-5.1.73-7.el6.i686.rpm    mysql-server-5.1.73-7.el6.i686.rpm
+    2. 查看mysql服务   iptables chkconfig
+    3. mysql启动       service mysqld start
+    4. 初次启动后可以为root用户设置密码
+          4.1 mysqladmin -u root password '123';
+          4.2 mysqladmin -u root -p password 'new_pwd';        之后输入旧密码
+    5. mysql指令
+          5.1 mysql -u root -p'xxx' -h 'ip'
+          5.2 show databases;                                   查看数据库
+          5.3 use xx;                                 
+          5.4 show tables;
+    6. 开启mysql远程连接
+          6.1 mysql -u root -p'xxx'
+          6.2 use mysql
+          6.3 select host,user,password from user;
+          6.4 update user set host='%',password=password('xx') where host='127.0.0.1';
+          6.5 flush privileges                                  刷新权限
+    7. /etc/my.cnf
+          default-character-set=utf8                            防止乱码
+    8. mysql卸载
+          8.1 rpm -e mysql-server                               删除主服务
+          8.2 rm -rf /var/lib/mysql                             删除库表数据
+          8.3 注：由于只卸载了主服务，重装时也只需要安装主服务 rpm -ivh mysql-server-5.1.73-7.el6.i686.rpm 
+    9. 忘记管理员密码
+          9.1 /etc/my.cnf 
+              skip-grant-tables                                 添加配置后，需要重启mysqld服务
+              update user set password=password('123') where xxxxxx;                修改密码 
+              将如上配置删除或注释
+    
