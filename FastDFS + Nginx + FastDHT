@@ -1,3 +1,5 @@
+#前提： 需配置好FastDFS , 详情查看FastDFS文件
+
 #FastDFS + Nginx
     #为什么要集成nginx?
         1. fastdfs 没有办法提供http服务，借助于nginx提供http服务支持
