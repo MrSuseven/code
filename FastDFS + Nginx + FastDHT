@@ -1,0 +1,93 @@
+#FastDFS + Nginx
+    #为什么要集成nginx?
+        1. fastdfs 没有办法提供http服务，借助于nginx提供http服务支持
+        2. 复制延迟问题
+    #注意： Nginx需搭建在storage服务器上     
+    #流程：
+        1. FastDFS 版本需 >5.11
+        2. yum install git
+        3. git clone https://github.com/happyfish100/fastdfs-nginx-module.git
+        4. wget http://nginx.org/download/nginx-1.11.1.tar.gz
+                远程复制命令：scp nginx-1.11.1.tar.gz root@192.168.128.132:/usr/local/software/
+        5. tar -zxvf nginx-1.11.1.tar.gz
+        6. cd nginx-1.11.1
+        7. ./configure --add-module=/usr/local/software/fastdfs-nginx-module/src/ --prefix=/usr/local/nginx
+        8. make && make install
+        9. cp /usr/local/software/fastdfs-nginx-module/src/mod_fastdfs.conf /etc/fdfs/
+        10.cd /usr/local/software/fastdfs/conf/
+        11.cp http.conf mime.types anti-steal.jpg /etc/fdfs/
+        12.cd /usr/loacl/nginx/conf && 修改nginx配置
+                   location ~/group([0-2])/M00 {
+		                    root /data/fastdfs/storage/store;
+			                  ngx_fastdfs_module;
+		               }
+        13.修改/etc/fdfs/mod_fastdfs.conf配置文件
+                   tracker_server=192.168.128.141:22122
+	              	 url_have_group_name = true
+		               group_name=group1
+	                 store_path0=/data/fastdfs/storage/store
+        14.cd /usr/local/nginx/sbin   
+                   ./nginx -t
+                   ./nginx -c /usr/local/nginx/conf/nginx.conf
+        15.搭建nginx 反向代理服务器
+                   upstream fdfs_group1 {
+                            server 192.168.128.137:80 weight=1 max_fails=2 fail_timeout=30s;
+                            server 192.168.128.151:80 weight=1 max_fails=2 fail_timeout=30s;
+                   }
+
+                   upstream fdfs_group2 {
+                            server 192.168.128.150:80 weight=1 max_fails=2 fail_timeout=30s;
+                            server 192.168.128.152:80 weight=1 max_fails=2 fail_timeout=30s;
+                   }
+                   -------------------------------------------------------------------------
+                   location /group1/M00 {
+                            proxy_pass http://fdfs_group1;
+                   }
+	                 location /group2/M00 {
+                            proxy_pass http://fdfs_group2;
+                   }
+
+#FastDFS + Nginx + FastDHT
+    #注意： FastDHT 是用来去重的, 第一次传递文件会上传, 后面全是快捷方式
+    #流程：
+        1. 下载db-4.7.25.tar.gz
+                   1). tar -zxf db-4.7.25.tar.gz
+                   2). cd db-4.7.25
+                   3). cd build_unix/
+                   4). ./../dist/configure
+                   5). make && make install
+        2. 安装FastDHT
+                   1). tar zxf FastDHT_v2.01.tar.gz
+                   2). cd FastDHT
+                   3). ./make.sh && ./make.sh install
+        3. 安装结束后会在/etc/fdht生成 3 个文件
+                   /etc/fdht文件下
+                        ├── fdht_client.conf
+	                      ├── fdhtd.conf
+		                    └── fdht_servers.conf
+        4. 修改相关配置
+                   1). fdhtd.conf
+                        base_path=/data/fastdht
+                   2). fdht_servers.conf 
+                        group_count = 2
+	                    	group0 = 192.168.227.132:11411
+                        group0 = 192.168.227.135:11411
+	                    	group1 = 192.168.227.133:11411
+                        group1 = 192.168.227.136:11411
+                   3). fdht_client.conf
+                        base_path=/tmp/
+                   4). 启动服务
+                        ./local/bin/fdhtd /etc/fdht/fdhtd.conf
+                   5). /etc/fdfs/storage.conf     
+                        check_file_duplicate=1
+		                    keep_alive=1
+		                    #include /etc/fdht/fdht_servers.conf
+                        注：3 个全改...
+        5. 启动
+                   1).  /usr/local/bin/fdhtd /etc/fdht/fdhtd.conf
+                        ps -ef | grep fdht   查看进程或去查看日志
+                   2).  /usr/bin/fdfs_trackerd /etc/fdfs/tracker.conf start
+                        注：需在tracker服务器上启动
+                   3).  /usr/bin/fdfs_storaged /etc/fdfs/storage.conf start
+                        ps -ef | grep fdfs   查看进程或取查看日志
+      
