@@ -20,13 +20,13 @@
         11.cp http.conf mime.types anti-steal.jpg /etc/fdfs/
         12.cd /usr/loacl/nginx/conf && 修改nginx配置
                    location ~/group([0-2])/M00 {
-		                    root /data/fastdfs/storage/store;
-			                  ngx_fastdfs_module;
-		               }
+		           root /data/fastdfs/storage/store;
+			   ngx_fastdfs_module;
+		   }
         13.修改/etc/fdfs/mod_fastdfs.conf配置文件
                    tracker_server=192.168.128.141:22122
 	              	 url_have_group_name = true
-		               group_name=group1
+		         group_name=group1
 	                 store_path0=/data/fastdfs/storage/store
         14.cd /usr/local/nginx/sbin   
                    ./nginx -t
@@ -45,7 +45,7 @@
                    location /group1/M00 {
                             proxy_pass http://fdfs_group1;
                    }
-	                 location /group2/M00 {
+	           location /group2/M00 {
                             proxy_pass http://fdfs_group2;
                    }
 
@@ -65,16 +65,16 @@
         3. 安装结束后会在/etc/fdht生成 3 个文件
                    /etc/fdht文件下
                         ├── fdht_client.conf
-	                      ├── fdhtd.conf
-		                    └── fdht_servers.conf
+	                ├── fdhtd.conf
+		        └── fdht_servers.conf
         4. 修改相关配置
                    1). fdhtd.conf
                         base_path=/data/fastdht
                    2). fdht_servers.conf 
                         group_count = 2
-	                    	group0 = 192.168.227.132:11411
+	                group0 = 192.168.227.132:11411
                         group0 = 192.168.227.135:11411
-	                    	group1 = 192.168.227.133:11411
+	                group1 = 192.168.227.133:11411
                         group1 = 192.168.227.136:11411
                    3). fdht_client.conf
                         base_path=/tmp/
@@ -82,8 +82,8 @@
                         ./local/bin/fdhtd /etc/fdht/fdhtd.conf
                    5). /etc/fdfs/storage.conf     
                         check_file_duplicate=1
-		                    keep_alive=1
-		                    #include /etc/fdht/fdht_servers.conf
+		        keep_alive=1
+		        #include /etc/fdht/fdht_servers.conf
                         注：3 个全改...
         5. 启动
                    1).  /usr/local/bin/fdhtd /etc/fdht/fdhtd.conf
