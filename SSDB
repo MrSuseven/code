@@ -1,0 +1,46 @@
+  
+#优缺点
+    1. SSDB拥有Redis的主要优点 a.高性能+b.丰富数据结构, 并且拥有大数据存储能力.
+    2. SSDB服务器的单机存储能力是Redis的 100倍!
+    3. SSDB读性能比Redis的读性能好, 但其写性能比Redis慢了10%左右, 原因：SSDB基于硬盘存储, Redis基于内存存储。
+#安装
+    1. wget --no-check-certificate https://github.com/ideawu/ssdb/archive/master.zip
+    2. 依赖 yum install -y gcc-c++ | yum install -y autoconf | yum install unzip
+    3. unzip master.zip
+    4. make && make install
+            注：默认安装在/usr/local/ssdb/目录下
+#启动
+    1. 修改ssdb.conf
+           ip：
+           port：
+    2. ./ssdb-server ssdb.conf -s start|restart|stop -d
+    3. ./ssdb-cli -p 8888 -h 192.168.227.137
+#主从
+    1. 主机配置：
+          work_dir = ./xx1
+          pidfile = ./xx1/ssdb.pid
+    2. 从机配置：
+          work_dir = ./xx2
+          pidfile = ./xx2/ssdb.pid
+          slaveof: 
+	               id: svc_1 
+	               # sync|mirror, default is sync 
+	               type: sync     //同步              
+	               # use ip for older version 
+                 #ip: 127.0.0.1 
+	               # use host since 1.9.2 
+	               host: localhost
+	               port: 8888
+#主主
+    1. 配置
+          work_dir = ./xx1
+          pidfile = ./xx1/ssdb.pid
+          slaveof: 
+	               id: svc_1 
+	               # sync|mirror, default is sync 
+	               type: mirror     //同步              
+	               # use ip for older version 
+                 #ip: 127.0.0.1 
+	               # use host since 1.9.2 
+	               host: localhost
+	               port: 8888
