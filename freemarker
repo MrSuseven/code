@@ -6,7 +6,8 @@
 			configuration.setDirectoryForTemplateLoading(new File("D:\\servlet\\workspace\\cmfz_weixf\\resources\\com\\sq8\\ftl"));
 			configuration.setDefaultEncoding("UTF-8");
 			Template template = configuration.getTemplate("article.ftl");
-			Map<String,Object> root = new HashMap<String,Object>();
+
+Map<String,Object> root = new HashMap<String,Object>();
 			root.put("Article", t);
 			root.put("author", author);
 			
@@ -34,3 +35,128 @@
 </#if>
 
 #判空       <#if  name??>                
+
+#TemplateLoader         自定义TemplateLoader
+public class MyTemplateLoader implements TemplateLoader {
+
+    private static List<Server> servers = Arrays.asList(
+            new Server("192.168.227.137", 8888),
+            new Server("192.168.227.137", 8889)
+    );
+
+    private static SsdbClient client = new SsdbClient(servers);
+
+
+    public Object findTemplateSource(String s) throws IOException {
+
+        return client.get("emp.ftl");
+    }
+
+    public long getLastModified(Object o) {
+        return 0;
+    }
+
+    public Reader getReader(Object o, String s) throws IOException {
+        String str = (String)o;
+        return new StringReader(str);
+    }
+
+    public void closeTemplateSource(Object o) throws IOException {
+
+    }
+}
+
+#生成页面并加载TemplateLoader
+public class HtmlGenerateUtil {
+    public static void genHTML(String template1, ModelMap modelMap, String dist) throws IOException, TemplateException {
+        Configuration conf=new Configuration(Configuration.VERSION_2_3_23);
+
+        MyTemplateLoader templateLoader = new MyTemplateLoader();
+        conf.setTemplateLoader(templateLoader);
+
+        Template template=conf.getTemplate(template1,"utf-8");
+
+        File file=new File(dist);
+        if(file.exists()&&(System.currentTimeMillis()-file.lastModified())<15000){
+            return;
+        }
+        FileOutputStream fos=new FileOutputStream(dist);
+
+        OutputStreamWriter osw=new OutputStreamWriter(fos,"utf-8");
+        template.process(modelMap,osw)
+        ;
+        osw.close();
+        fos.close();
+    }
+}
+
+#UrlRewrite
+1. 配置文件urlrewrite.xml
+	<urlrewrite>
+	    <rule >
+		<from>/test/status/</from>
+		<to type="redirect">%{context-path}/rewrite-status</to>
+	    </rule>
+	    <rule match-type="regex">
+		<from>/emp/show_([0-9a-z]*).html</from>
+		<to type="forward">/emp/show?id=$1&amp;path=$0</to>
+	    </rule>
+	</urlrewrite>
+2. 过滤器
+	public class MyFilter extends UrlRewriteFilter {
+
+	    @Override
+	    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+		/*if(((HttpServletRequest)request).getRequestURI().endsWith(".html")){
+		    chain.doFilter(request, response);
+		}*/
+
+		if(!isStaticResourceExits((HttpServletRequest) request)){
+		    super.doFilter(request, response, chain);
+		}else {
+		    chain.doFilter(request, response);
+		}
+	    }
+
+	    public static boolean isStaticResourceExits(HttpServletRequest request){
+		String requestURI = request.getRequestURI();                //fmtl/emp/show_1.html
+
+		int indexOf = requestURI.indexOf("/", 1);
+
+		String requestFileURI =requestURI.substring(indexOf);       //emp/show_1.html 将网络路劲转换为 物理路径
+
+		String realPath = request.getSession().getServletContext().getRealPath(requestFileURI);
+
+		File file=new File(realPath);
+		if(file.exists()){
+		    //判断文件生成时间 5s 内 文件 隐藏
+		    if((System.currentTimeMillis()-file.lastModified())<5000){
+			return false;
+		    }
+		    //文件 最多存活 15秒
+		    if((System.currentTimeMillis()-file.lastModified())>15000){
+			return false;
+		    }
+		    return true;
+		}
+		return false;
+	    }
+	}
+3. web.xml
+	<filter>
+	    <filter-name>UrlRewriteFilter</filter-name>
+      	    <filter-class>com.sq8.filter.MyFilter</filter-class>
+	</filter>
+	<filter-mapping>
+	    <filter-name>UrlRewriteFilter</filter-name>
+	    <url-pattern>/*</url-pattern>
+	    <dispatcher>REQUEST</dispatcher>
+	    <dispatcher>FORWARD</dispatcher>
+	</filter-mapping>
+4. pom.xml
+	<dependency>
+      	    <groupId>org.tuckey</groupId>
+            <artifactId>urlrewritefilter</artifactId>
+            <version>4.0.3</version>
+        </dependency>
+
