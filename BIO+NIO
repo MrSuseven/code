@@ -1,0 +1,140 @@
+#BIO
+    1. server:
+       public static void main(String[] args) throw IOException{
+            //1. 创建服务端 负责接收客户端连接请求
+            ServerSocket serverSocket = new ServerSocket();
+            //2. 绑定端口
+            serverSocket.bind(new InetSocketAddress( port ));
+            // 创建连接池对象
+            ExecutorService pool = ExecutorService.newFixedThreadPool(nThreads);
+            while(true) {
+                  //3. 创建客户端 等待请求到来
+                  final Socket socket = serverSocket.accept();
+                  // 将任务交由连接池处理
+                  pool.submit(new Runnable(){
+                        public void run(){
+                              try{  
+                                    //4. 获取用户的请求
+                                    InputStream is = socket.getInputStream();
+                                    InputStreamReader isr = new InputStreamReader(is);
+                                    BufferedReader br = new BufferedReader(isr);
+                                    
+                                    StringBuilder sb = new StringBuilder();
+                                    String line = null;
+                                    while((line = br.readLine()) != null){
+                                          sb.append(line);
+                                    }
+                                    System.out.println("服务端收到：" + sb);
+                                    
+                                    //5.响应客户端
+                                    OutputStream os = socket.getOutputStream();
+                                    PrintWriter pw = new PrintWriter(os);
+                                    pw.println("当前服务器时间：" + new Date().toLocaleString());
+                                    pw.flush();
+                                    // 告知客户端数据写截止                             
+                                    socket.shutdownOutput();
+                                    //6. 释放资源
+                                    socket.close();
+                              }catch(Exception e){
+                                    e.printStackTrace();
+                              }
+                        }
+                  });     
+            }
+       }     
+    2. client:
+       public static void main(String[] args) throws IOException{
+            //1. 创建客户端对象
+            Socket socket = new Socket();
+            //2. 指定链接服务器
+            socket.connect(new InetSocketAddress(ip, port));
+            //3. 发出请求
+            OutputStream os = socket.getOutputStream();
+            PrintWriter pw = new PrintWriter(os);
+            pw.println("Hello Java!");
+            pw.flush();
+            // 告知服务端数据写截止
+            socket.shutdownOutput();
+            //4. 获取响应
+            InputStream is = socket.getInputStream();
+            InputStreamReader isr = new InputStreamReader(is);
+            BufferedReader br = new BufferedReader(isr);
+            
+            StringBuilder sb = new StringBuilder();
+            String line = null;
+            while((line = br.readLine()) != null){
+                  sb.append(line);
+            }
+            System.out.println("客户端收到：" + sb);
+            
+            //6. 释放资源
+            socket.close();
+       }    
+#NIO        
+    1. server 
+       public static void main(String[] args) throws IOException{
+            //1. 创建服务器端
+            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+            //2. 设置服务端监听端口
+            serverSocketChannel.bind(new InetSocketAddress( port ));
+            //3. 等待请求到来
+            SocketChannel socketChannel = serverSocketChannel.accept();
+            //4. 获取用户的意图
+            ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            while(true) {
+                  byteBuffer.clear();
+                  int i = socketChannel.read(byteBuffer);
+                  if(i == -1) break;
+                  byteBuffer.flip();
+                  baos.write(byteBuffer.array(), 0, i);
+            }
+            System.out.println("服务器收到：" + new String(baos.toByteArray()));
+            //5. 响应客户端
+            byteBuffer.clear();
+            byteBuffer.put(("服务器端：" + new Date().toLocaleString(0).getBytes());
+            byteBuffer.flip();
+            socketChannel.write(byteBuffer);
+            socketChannel.shutdownOutput();
+            //6. 释放资源
+            socketChannel.close();
+       }
+    2. client
+       # write
+            public static void mian(String[] args) throws IOException{
+                  FileOutputStream fos = new FileOutputStream(path);
+                  FileChannel channel = fos.getChannel();
+                  
+                  String value = "Hello Java!";
+                  byte[] bytes = new byte[value.getBytes().length];
+                  ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+                  
+                  byteBuffer.put(value.getBytes());
+                  byteBuffer.filp();
+                  channel.write(byteBuffer);
+                  
+                  channel.close();
+            }      
+       # copy
+            public static void main(String[] args) throws IOException{
+                  FileInputStream fis = new FileInputStream(existPath);
+                  FileChannel fisChannel = fis.getChannel();
+                  
+                  FileOutputStream fos = new FileOutputStream(newPath);
+                  FileChannel fosChannel = fos.getChannel();
+                  
+                  ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
+                  while(true) {
+                        byteBuffer.clear();
+                        int i = fisChannel.read(byteBuffer);
+                        if(i == -1) break;
+                        byteBuffer.flip();
+                        fosChannel.write(byteBuffer);
+                  }
+                  
+                  fisChannel.close();
+                  fosChannel.close();
+            }
+        
+        
+        
